@@ -2,86 +2,45 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RollerCoin Profil Sorgulama</title>
+    <title>RC Profil Analiz</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #1a1b26; color: white; display: flex; justify-content: center; padding: 20px; }
-        .container { background: #24283b; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 400px; }
-        h2 { color: #f3ad0e; text-align: center; }
-        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
-        input { flex: 1; padding: 12px; border-radius: 5px; border: none; background: #1a1b26; color: white; }
-        button { padding: 12px 20px; background: #f3ad0e; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .result-box { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; display: none; }
-        .row { display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #3b4261; padding-bottom: 5px; }
-        .label { color: #9ece6a; }
-        #status { text-align: center; font-size: 14px; margin-top: 10px; color: #f7768e; }
+        body { background: #1a1b26; color: white; font-family: sans-serif; text-align: center; padding: 50px; }
+        .box { background: #24283b; padding: 20px; border-radius: 10px; display: inline-block; text-align: left; }
+        .val { color: #f3ad0e; font-weight: bold; }
+        input { padding: 10px; border-radius: 5px; border: none; margin-bottom: 10px; width: 200px; }
+        button { padding: 10px 20px; background: #f3ad0e; border: none; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
-
-<div class="container">
-    <h2>RC Profil Sorgu</h2>
-    <div class="input-group">
-        <input type="text" id="username" placeholder="Kullanıcı adı (örn: graphin)">
-        <button onclick="fetchData()">Sorgula</button>
+    <h2>RollerCoin Veri Dönüştürücü</h2>
+    <input type="text" id="user" placeholder="Kullanıcı Adı Yaz">
+    <button onclick="sorgula()">SORGULA</button>
+    <br><br>
+    <div class="box" id="sonuc" style="display:none">
+        <div>Güç: <span id="p" class="val"></span></div>
+        <div>Bonus: <span id="b" class="val"></span></div>
+        <div>Sıcaklık: <span id="s" class="val"></span></div>
+        <div>Raflar: <span id="r" class="val"></span></div>
     </div>
-    <div id="status"></div>
-    <div id="result" class="result-box">
-        <div class="row"><span class="label">Güç:</span> <span id="res-power"></span></div>
-        <div class="row"><span class="label">Bonus:</span> <span id="res-bonus"></span></div>
-        <div class="row"><span class="label">Sıcaklık:</span> <span id="res-temp"></span></div>
-        <div class="row"><span class="label">Raflar:</span> <span id="res-racks"></span></div>
-    </div>
-</div>
 
-<script>
-async function fetchData() {
-    const user = document.getElementById('username').value.trim();
-    const status = document.getElementById('status');
-    const resBox = document.getElementById('result');
+    <script>
+        async function sorgula() {
+            const u = document.getElementById('user').value;
+            const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://rollercoin.com/api/profile/public-user-profile-data/'+u)}`);
+            const data = await res.json();
+            const j = JSON.parse(data.contents);
 
-    if(!user) return status.innerText = "İsim girin!";
-    
-    status.innerText = "Veriler Proxy üzerinden çekiliyor...";
-    status.style.color = "#e0af68";
-    resBox.style.display = "none";
-
-    try {
-        // rchesapla gibi sitelerin kullandığı CORS engelini aşan Proxy servisi
-        const proxyUrl = "https://api.allorigins.win/get?url=";
-        const targetUrl = encodeURIComponent(`https://rollercoin.com/api/profile/public-user-profile-data/${user}`);
-        
-        const response = await fetch(proxyUrl + targetUrl);
-        const json = await response.json();
-        const result = JSON.parse(json.contents); // Proxy'den gelen veriyi çöz
-
-        if (result.success && result.data) {
-            const d = result.data;
-            
-            // Güç hesaplama (Trilyon -> Ph/s)
-            const p = Number(d.current_power);
-            document.getElementById('res-power').innerText = (p / 1000000000000).toFixed(3) + " Ph/s";
-
-            // Bonus (% formatı)
-            document.getElementById('res-bonus').innerText = "%" + (Number(d.bonus_percent) / 10000).toFixed(2);
-
-            // Sıcaklık
-            document.getElementById('res-temp').innerText = (Number(d.temp) / 10000000).toFixed(1) + "°C";
-            
-            // Raflar
-            document.getElementById('res-racks').innerText = Math.floor(Number(d.racks) / 1000000000);
-
-            status.innerText = "";
-            resBox.style.display = "block";
-        } else {
-            status.innerText = "Kullanıcı bulunamadı!";
+            if(j.success) {
+                // Senin paylaştığın ham verileri burada işliyoruz:
+                document.getElementById('p').innerText = (Number(j.data.current_power) / 1e12).toFixed(3) + " Ph/s";
+                document.getElementById('b').innerText = "%" + (Number(j.data.bonus_percent) / 10000).toFixed(2);
+                document.getElementById('s').innerText = (Number(j.data.temp) / 1e7).toFixed(1) + "°C";
+                document.getElementById('r').innerText = Math.floor(Number(j.data.racks) / 1e9);
+                document.getElementById('sonuc').style.display = "block";
+            } else {
+                alert("Veri çekilemedi!");
+            }
         }
-    } catch (e) {
-        status.innerText = "Hata: Proxy servisi şu an meşgul.";
-        console.error(e);
-    }
-}
-</script>
-
+    </script>
 </body>
 </html>
