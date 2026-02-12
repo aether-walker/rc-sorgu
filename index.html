@@ -2,45 +2,95 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RC Profil Analiz</title>
     <style>
-        body { background: #1a1b26; color: white; font-family: sans-serif; text-align: center; padding: 50px; }
-        .box { background: #24283b; padding: 20px; border-radius: 10px; display: inline-block; text-align: left; }
+        body { background: #1a1b26; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; }
+        .container { background: #24283b; padding: 30px; border-radius: 15px; display: inline-block; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 90%; max-width: 400px; }
+        h2 { color: #f3ad0e; margin-bottom: 20px; }
+        input { padding: 12px; border-radius: 8px; border: 2px solid #3b4261; background: #1a1b26; color: white; width: 70%; margin-bottom: 15px; outline: none; }
+        input:focus { border-color: #f3ad0e; }
+        button { padding: 12px 25px; background: #f3ad0e; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; width: 80%; }
+        button:active { transform: scale(0.95); opacity: 0.8; }
+        #status { margin-top: 15px; font-size: 14px; color: #9ece6a; height: 20px; }
+        .result-box { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; margin-top: 20px; display: none; text-align: left; }
+        .row { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid #3b4261; padding-bottom: 5px; }
+        .label { color: #a9b1d6; }
         .val { color: #f3ad0e; font-weight: bold; }
-        input { padding: 10px; border-radius: 5px; border: none; margin-bottom: 10px; width: 200px; }
-        button { padding: 10px 20px; background: #f3ad0e; border: none; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <h2>RollerCoin Veri Dönüştürücü</h2>
-    <input type="text" id="user" placeholder="Kullanıcı Adı Yaz">
-    <button onclick="sorgula()">SORGULA</button>
-    <br><br>
-    <div class="box" id="sonuc" style="display:none">
-        <div>Güç: <span id="p" class="val"></span></div>
-        <div>Bonus: <span id="b" class="val"></span></div>
-        <div>Sıcaklık: <span id="s" class="val"></span></div>
-        <div>Raflar: <span id="r" class="val"></span></div>
-    </div>
 
-    <script>
-        async function sorgula() {
-            const u = document.getElementById('user').value;
-            const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://rollercoin.com/api/profile/public-user-profile-data/'+u)}`);
-            const data = await res.json();
+<div class="container">
+    <h2>RC Profil Analiz</h2>
+    <input type="text" id="user" placeholder="Kullanıcı Adı (Örn: GraphIn)">
+    <button id="btn" onclick="sorgula()">VERİLERİ ÇEK</button>
+    <div id="status"></div>
+
+    <div class="result-box" id="sonuc">
+        <div class="row"><span class="label">Güç:</span> <span id="p" class="val"></span></div>
+        <div class="row"><span class="label">Bonus:</span> <span id="b" class="val"></span></div>
+        <div class="row"><span class="label">Sıcaklık:</span> <span id="s" class="val"></span></div>
+        <div class="row"><span class="label">Raf Birimi:</span> <span id="r" class="val"></span></div>
+    </div>
+</div>
+
+<script>
+    async function sorgula() {
+        const u = document.getElementById('user').value.trim();
+        const status = document.getElementById('status');
+        const btn = document.getElementById('btn');
+        const sonuc = document.getElementById('sonuc');
+
+        if(!u) {
+            status.innerText = "Lütfen bir isim girin!";
+            status.style.color = "#f7768e";
+            return;
+        }
+
+        // Görsel Geri Bildirim
+        btn.innerText = "Sorgulanıyor...";
+        btn.disabled = true;
+        status.innerText = "Bağlantı kuruluyor...";
+        status.style.color = "#e0af68";
+        sonuc.style.display = "none";
+
+        try {
+            const proxy = "https://api.allorigins.win/get?url=";
+            const target = encodeURIComponent(`https://rollercoin.com/api/profile/public-user-profile-data/${u}`);
+            
+            const response = await fetch(proxy + target);
+            if (!response.ok) throw new Error("Proxy hatası");
+            
+            const data = await response.json();
             const j = JSON.parse(data.contents);
 
-            if(j.success) {
-                // Senin paylaştığın ham verileri burada işliyoruz:
-                document.getElementById('p').innerText = (Number(j.data.current_power) / 1e12).toFixed(3) + " Ph/s";
-                document.getElementById('b').innerText = "%" + (Number(j.data.bonus_percent) / 10000).toFixed(2);
-                document.getElementById('s').innerText = (Number(j.data.temp) / 1e7).toFixed(1) + "°C";
-                document.getElementById('r').innerText = Math.floor(Number(j.data.racks) / 1e9);
-                document.getElementById('sonuc').style.display = "block";
+            if(j && j.success && j.data) {
+                const d = j.data;
+                
+                // Matematiksel işlemler
+                document.getElementById('p').innerText = (Number(d.current_power || 0) / 1e12).toFixed(3) + " Ph/s";
+                document.getElementById('b').innerText = "%" + (Number(d.bonus_percent || 0) / 10000).toFixed(2);
+                document.getElementById('s').innerText = (Number(d.temp || 0) / 1e7).toFixed(1) + "°C";
+                document.getElementById('r').innerText = Math.floor(Number(d.racks || 0) / 1e9);
+                
+                status.innerText = "Veri başarıyla güncellendi!";
+                status.style.color = "#9ece6a";
+                sonuc.style.display = "block";
             } else {
-                alert("Veri çekilemedi!");
+                status.innerText = "Hata: Profil gizli veya geçersiz.";
+                status.style.color = "#f7768e";
             }
+        } catch (e) {
+            status.innerText = "Hata: Bağlantı başarısız!";
+            status.style.color = "#f7768e";
+            console.error(e);
+        } finally {
+            btn.innerText = "VERİLERİ ÇEK";
+            btn.disabled = false;
         }
-    </script>
+    }
+</script>
+
 </body>
 </html>
